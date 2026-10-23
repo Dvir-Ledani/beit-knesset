@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>בית הכנסת</title>
+  <meta name="description" content="זמני תפילות, עליות לתורה והודעות הגבאים">
+  <meta name="robots" content="noindex, nofollow">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="בית הכנסת">
+  <meta property="og:description" content="זמני תפילות, עליות לתורה והודעות הגבאים">
+  <meta property="og:image" content="https://dvir-ledani.github.io/beit-knesset/og.png">
+  <meta property="og:locale" content="he_IL">
+
+  <meta name="theme-color" content="#1f2b26">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="בית הכנסת">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=David+Libre:wght@500;700&family=Rubik:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <p class="status" id="status" role="status" hidden></p>
+
+    <header class="masthead">
+      <h1 id="shul-name">בית הכנסת</h1>
+      <p class="shabbat" id="shabbat-title"></p>
+      <p class="shabbat-date" id="shabbat-date"></p>
+    </header>
+
+    <main>
+      <section class="block" aria-labelledby="times-title">
+        <h2 id="times-title">זמני תפילות</h2>
+        <div class="switch" id="groups" role="group" aria-label="בחירת סוג יום"></div>
+        <div class="frame">
+          <div class="board">
+            <ul class="board-rows" id="board-rows" aria-live="polite"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" aria-labelledby="aliyot-title">
+        <h2 id="aliyot-title">עליות לתורה בשבת</h2>
+        <ol class="aliyot" id="aliyot"></ol>
+      </section>
+
+      <section class="block" aria-labelledby="news-title">
+        <h2 id="news-title">הודעות</h2>
+        <div class="news" id="news"></div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <details class="install">
+        <summary>איך שומרים את האתר במסך הבית</summary>
+        <p>אם האתר נפתח בתוך וואטסאפ, קודם פותחים אותו בדפדפן.</p>
+        <p><strong>באייפון:</strong> ב-Safari לוחצים על כפתור השיתוף ובוחרים "הוספה למסך הבית".</p>
+        <p><strong>באנדרואיד:</strong> ב-Chrome לוחצים על שלוש הנקודות ובוחרים "הוספה למסך הבית" או "התקנת אפליקציה".</p>
+      </details>
+      <p class="credit">המידע באתר מתעדכן על ידי הגבאים.</p>
+    </footer>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
