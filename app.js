@@ -141,30 +141,51 @@
     return day === 6 || (day === 5 && now.getHours() >= 12);
   }
 
-  // ---------- צאת שבת (מחושב לפי מיקום העיר) ----------
+  // ---------- כניסת ויציאת שבת (מחושב לפי מיקום העיר) ----------
   var CITY = { name: "נתניה", lat: 32.33291, lon: 34.85992 };
-  var TZEIT_DEGREES = 8.5; // השמש 8.5 מעלות מתחת לאופק, כמו ברוב הלוחות בארץ
+  var CANDLE_MINUTES = 20;  // הדלקת נרות: 20 דקות לפני השקיעה
+  var TZEIT_DEGREES = 8.5;  // יציאת שבת: השמש 8.5 מעלות מתחת לאופק, כמו ברוב הלוחות בארץ
+  var SUNSET_ALTITUDE = -0.833;
 
-  // השעה שבה השמש יורדת לזווית הנתונה מתחת לאופק, ביום הנתון
-  function sunBelowHorizon(date, degrees, lat, lon) {
-    var rad = Math.PI / 180;
-    var jd = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000 + 2440587.5;
-    var n = Math.ceil(jd - 2451545.0 + 0.0008);
-    var jstar = n - lon / 360;
-    var M = (357.5291 + 0.98560028 * jstar) % 360;
-    var C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
-    var L = (M + C + 180 + 102.9372) % 360;
-    var transit = 2451545.0 + jstar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * L * rad);
-    var dec = Math.asin(Math.sin(L * rad) * Math.sin(23.4397 * rad));
-    var cosw = (Math.sin(-degrees * rad) - Math.sin(lat * rad) * Math.sin(dec)) / (Math.cos(lat * rad) * Math.cos(dec));
-    if (cosw < -1 || cosw > 1) return null;
-    var w = Math.acos(cosw) / rad;
-    return new Date((transit + w / 360 - 2440587.5) * 86400000);
+  // השעה בערב שבה מרכז השמש מגיע לגובה הנתון (במעלות; שלילי = מתחת לאופק). שיטת NOAA.
+  function sunAt(date, altitude, lat, lon) {
+    var r = Math.PI / 180;
+    var jd0 = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000 + 2440587.5;
+    var t = 15 / 24;
+    // מעבר אחד, בדיוק כמו בגיליון, כדי שהאתר והגיליון יראו תמיד אותה דקה
+    for (var i = 0; i < 1; i++) {
+      var jc = (jd0 + t - 2451545) / 36525;
+      var L0 = ((280.46646 + jc * (36000.76983 + jc * 0.0003032)) % 360 + 360) % 360;
+      var M = 357.52911 + jc * (35999.05029 - 0.0001537 * jc);
+      var e = 0.016708634 - jc * (0.000042037 + 0.0000001267 * jc);
+      var C = Math.sin(M * r) * (1.914602 - jc * (0.004817 + 0.000014 * jc)) +
+        Math.sin(2 * M * r) * (0.019993 - 0.000101 * jc) + Math.sin(3 * M * r) * 0.000289;
+      var omega = (125.04 - 1934.136 * jc) * r;
+      var app = L0 + C - 0.00569 - 0.00478 * Math.sin(omega);
+      var eps = 23 + (26 + (21.448 - jc * (46.815 + jc * (0.00059 - jc * 0.001813))) / 60) / 60 + 0.00256 * Math.cos(omega);
+      var dec = Math.asin(Math.sin(eps * r) * Math.sin(app * r));
+      var y = Math.pow(Math.tan(eps * r / 2), 2);
+      var eqTime = 4 / r * (y * Math.sin(2 * L0 * r) - 2 * e * Math.sin(M * r) +
+        4 * e * y * Math.sin(M * r) * Math.cos(2 * L0 * r) - 0.5 * y * y * Math.sin(4 * L0 * r) -
+        1.25 * e * e * Math.sin(2 * M * r));
+      var cosHa = Math.cos((90 - altitude) * r) / (Math.cos(lat * r) * Math.cos(dec)) - Math.tan(lat * r) * Math.tan(dec);
+      if (cosHa < -1 || cosHa > 1) return null;
+      var ha = Math.acos(cosHa) / r;
+      t = (720 - 4 * lon - eqTime + 4 * ha) / 1440;
+    }
+    return new Date((jd0 + t - 2440587.5) * 86400000);
   }
 
   function shabbatEnd() {
-    var t = sunBelowHorizon(state.shabbatDate || upcomingShabbat(), TZEIT_DEGREES, CITY.lat, CITY.lon);
+    var t = sunAt(state.shabbatDate || upcomingShabbat(), -TZEIT_DEGREES, CITY.lat, CITY.lon);
     return t ? new Date(Math.ceil(t.getTime() / 60000) * 60000) : null;
+  }
+
+  function shabbatStart() {
+    var sat = state.shabbatDate || upcomingShabbat();
+    var fri = new Date(sat.getFullYear(), sat.getMonth(), sat.getDate() - 1);
+    var t = sunAt(fri, SUNSET_ALTITUDE, CITY.lat, CITY.lon);
+    return t ? new Date(Math.floor((t.getTime() - CANDLE_MINUTES * 60000) / 60000) * 60000) : null;
   }
 
   function formatClock(t) {
@@ -214,6 +235,22 @@
     state.shabbatDate = date;
     var heb = hebrewDate(date);
     $("shabbat-date").textContent = parasha ? (heb ? heb + ", " : "") + gregorianDate(date) : "";
+
+    // כניסת ויציאת שבת: מהגיליון אם יש, אחרת מחושב כאן
+    var start = shabbatStart(), end = shabbatEnd();
+    var times = [
+      ["כניסת שבת", map["כניסת שבת"] || (start ? formatClock(start) : "")],
+      ["יציאת שבת", map["יציאת שבת"] || (end ? formatClock(end) : "")]
+    ];
+    var dl = $("shabbat-times");
+    dl.textContent = "";
+    times.forEach(function (pair) {
+      if (!pair[1]) return;
+      var div = el("div");
+      div.appendChild(el("dt", null, pair[0]));
+      div.appendChild(el("dd", null, pair[1]));
+      dl.appendChild(div);
+    });
 
     var reader = map["בעל קורא"] || map["בעל הקורא"] || "";
     var box = $("reader");
@@ -276,19 +313,13 @@
       list.appendChild(el("li", "empty", "הזמנים יפורסמו בקרוב"));
       return;
     }
-    var usesShabbatEnd = false;
     items.forEach(function (it) {
-      var time = resolveTime(it.time);
-      if (time.auto) usesShabbatEnd = true;
       var li = el("li");
       li.appendChild(el("span", "name", it.name));
-      li.appendChild(el("span", "time", time.text));
+      li.appendChild(el("span", "time", resolveTime(it.time).text));
       list.appendChild(li);
       if (it.note) list.appendChild(el("li", "note", it.note));
     });
-
-    var end = usesShabbatEnd && shabbatEnd();
-    if (end) list.appendChild(el("li", "note", "צאת שבת ב" + CITY.name + ": " + formatClock(end)));
   }
 
   function renderAliyot(rows) {
