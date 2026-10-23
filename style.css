@@ -106,7 +106,14 @@ a { color: var(--link); text-underline-offset: 0.15em; }
   font-size: 0.9375rem;
 }
 
-.shabbat:empty, .shabbat-date:empty { display: none; }
+.reader {
+  margin: 0.75rem 0 0;
+}
+
+.reader .label { color: var(--muted); }
+.reader .who { font-weight: 500; }
+
+.shabbat:empty, .shabbat-date:empty, .reader:empty { display: none; }
 
 /* ---------- אזורים ---------- */
 .block { margin-top: 2.25rem; }

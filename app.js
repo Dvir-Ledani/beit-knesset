@@ -10,6 +10,7 @@
       ["שדה", "ערך"],
       ["שם בית הכנסת", "בית הכנסת"],
       ["פרשה", "לך לך"],
+      ["בעל קורא", "רועי אהרוני"],
       ["תאריך", ""]
     ],
     times: [
@@ -163,6 +164,14 @@
     var date = parseDate(map["תאריך"]) || upcomingShabbat();
     var heb = hebrewDate(date);
     $("shabbat-date").textContent = parasha ? (heb ? heb + ", " : "") + gregorianDate(date) : "";
+
+    var reader = map["בעל קורא"] || map["בעל הקורא"] || "";
+    var box = $("reader");
+    box.textContent = "";
+    if (reader) {
+      box.appendChild(el("span", "label", "בעל קורא: "));
+      box.appendChild(el("span", "who", reader));
+    }
   }
 
   function renderTimes(rows) {
