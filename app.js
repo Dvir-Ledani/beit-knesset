@@ -15,13 +15,12 @@
     ],
     times: [
       ["קבוצה", "תפילה", "שעה", "הערה"],
-      ["חול", "שחרית", "6:15", ""],
-      ["חול", "מנחה", "16:50", ""],
-      ["חול", "ערבית", "17:20", ""],
-      ["שבת", "מנחה ערב שבת", "16:55", ""],
-      ["שבת", "שחרית", "8:00", ""],
-      ["שבת", "מנחה", "16:30", ""],
-      ["שבת", "ערבית מוצאי שבת", "17:40", ""]
+      ["חול", "שחרית", "5:45", ""],
+      ["חול", "מנחה", "18:10", ""],
+      ["חול", "ערבית", "18:30", ""],
+      ["שבת", "שחרית", "7:15", ""],
+      ["שבת", "מנחה", "שעה לפני צאת שבת", ""],
+      ["שבת", "ערבית", "10 דקות לפני צאת שבת", ""]
     ],
     aliyot: [
       ["עלייה", "שם"],
@@ -142,6 +141,56 @@
     return day === 6 || (day === 5 && now.getHours() >= 12);
   }
 
+  // ---------- צאת שבת (מחושב לפי מיקום העיר) ----------
+  var CITY = { name: "נתניה", lat: 32.33291, lon: 34.85992 };
+  var TZEIT_DEGREES = 8.5; // השמש 8.5 מעלות מתחת לאופק, כמו ברוב הלוחות בארץ
+
+  // השעה שבה השמש יורדת לזווית הנתונה מתחת לאופק, ביום הנתון
+  function sunBelowHorizon(date, degrees, lat, lon) {
+    var rad = Math.PI / 180;
+    var jd = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000 + 2440587.5;
+    var n = Math.ceil(jd - 2451545.0 + 0.0008);
+    var jstar = n - lon / 360;
+    var M = (357.5291 + 0.98560028 * jstar) % 360;
+    var C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+    var L = (M + C + 180 + 102.9372) % 360;
+    var transit = 2451545.0 + jstar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * L * rad);
+    var dec = Math.asin(Math.sin(L * rad) * Math.sin(23.4397 * rad));
+    var cosw = (Math.sin(-degrees * rad) - Math.sin(lat * rad) * Math.sin(dec)) / (Math.cos(lat * rad) * Math.cos(dec));
+    if (cosw < -1 || cosw > 1) return null;
+    var w = Math.acos(cosw) / rad;
+    return new Date((transit + w / 360 - 2440587.5) * 86400000);
+  }
+
+  function shabbatEnd() {
+    var t = sunBelowHorizon(state.shabbatDate || upcomingShabbat(), TZEIT_DEGREES, CITY.lat, CITY.lon);
+    return t ? new Date(Math.ceil(t.getTime() / 60000) * 60000) : null;
+  }
+
+  function formatClock(t) {
+    return new Intl.DateTimeFormat("he-IL", {
+      hour: "numeric", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Jerusalem"
+    }).format(t);
+  }
+
+  // "שעה לפני צאת שבת", "10 דקות לפני צאת שבת", "צאת שבת - 10" וכדומה הופכים לשעה מחושבת
+  function resolveTime(raw) {
+    var s = clean(raw);
+    if (!/צאת\s*ה?שבת/.test(s)) return { text: s, auto: false };
+    var end = shabbatEnd();
+    if (!end) return { text: "", auto: true };
+    var minutes = 0, m;
+    var words = { "חצי שעה": 30, "שעה": 60, "שעתיים": 120 };
+    if ((m = s.match(/(\d+)\s*(?:דקות|דקה|דק['׳]?)?\s*(לפני|אחרי)/))) {
+      minutes = +m[1] * (m[2] === "לפני" ? -1 : 1);
+    } else if ((m = s.match(/(חצי שעה|שעתיים|שעה)\s*(לפני|אחרי)/))) {
+      minutes = words[m[1]] * (m[2] === "לפני" ? -1 : 1);
+    } else if ((m = s.match(/צאת\s*ה?שבת\s*([-+−–])\s*(\d+)/))) {
+      minutes = +m[2] * (m[1] === "+" ? 1 : -1);
+    }
+    return { text: formatClock(new Date(end.getTime() + minutes * 60000)), auto: true };
+  }
+
   // ---------- הצגה ----------
   var state = { groups: [], selected: null };
 
@@ -162,6 +211,7 @@
     $("shabbat-title").textContent = parasha ? "שבת " + parasha : "";
 
     var date = parseDate(map["תאריך"]) || upcomingShabbat();
+    state.shabbatDate = date;
     var heb = hebrewDate(date);
     $("shabbat-date").textContent = parasha ? (heb ? heb + ", " : "") + gregorianDate(date) : "";
 
@@ -226,13 +276,19 @@
       list.appendChild(el("li", "empty", "הזמנים יפורסמו בקרוב"));
       return;
     }
+    var usesShabbatEnd = false;
     items.forEach(function (it) {
+      var time = resolveTime(it.time);
+      if (time.auto) usesShabbatEnd = true;
       var li = el("li");
       li.appendChild(el("span", "name", it.name));
-      li.appendChild(el("span", "time", it.time));
+      li.appendChild(el("span", "time", time.text));
       list.appendChild(li);
       if (it.note) list.appendChild(el("li", "note", it.note));
     });
+
+    var end = usesShabbatEnd && shabbatEnd();
+    if (end) list.appendChild(el("li", "note", "צאת שבת ב" + CITY.name + ": " + formatClock(end)));
   }
 
   function renderAliyot(rows) {
