@@ -196,7 +196,7 @@
 
   // "שעה לפני צאת שבת", "10 דקות לפני צאת שבת", "צאת שבת - 10" וכדומה הופכים לשעה מחושבת
   function resolveTime(raw) {
-    var s = clean(raw);
+    var s = clean(raw).replace(/^(\d{1,2}:\d{2}):\d{2}$/, "$1"); // 18:10:00 -> 18:10
     if (!/צאת\s*ה?שבת/.test(s)) return { text: s, auto: false };
     var end = shabbatEnd();
     if (!end) return { text: "", auto: true };
@@ -239,8 +239,8 @@
     // כניסת ויציאת שבת: מהגיליון אם יש, אחרת מחושב כאן
     var start = shabbatStart(), end = shabbatEnd();
     var times = [
-      ["כניסת שבת", map["כניסת שבת"] || (start ? formatClock(start) : "")],
-      ["יציאת שבת", map["יציאת שבת"] || (end ? formatClock(end) : "")]
+      ["כניסת שבת", resolveTime(map["כניסת שבת"]).text || (start ? formatClock(start) : "")],
+      ["יציאת שבת", resolveTime(map["יציאת שבת"]).text || (end ? formatClock(end) : "")]
     ];
     var dl = $("shabbat-times");
     dl.textContent = "";
@@ -430,7 +430,7 @@
       return base + "?output=csv&single=true&gid=" + encodeURIComponent(cfg.gids[key]);
     }
     return "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(cfg.sheetId) +
-      "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(cfg.tabNames[key]);
+      "/gviz/tq?tqx=out:csv&headers=1&sheet=" + encodeURIComponent(cfg.tabNames[key]);
   }
 
   function isConfigured(cfg) {
