@@ -7,7 +7,7 @@ window.SITE_CONFIG = {
   gids: { general: "", times: "", aliyot: "", messages: "" },
 
   // אפשרות ב: מזהה הגיליון, אם הוא משותף לצפייה לכל מי שיש לו את הקישור
-  sheetId: "",
+  sheetId: "122jQ4gla1bqA1_cA2yVwb40cAO5xtRgwpvzAp1ZH9Xo",
 
   // שמות הלשוניות בגיליון
   tabNames: { general: "כללי", times: "זמנים", aliyot: "עליות", messages: "הודעות" }

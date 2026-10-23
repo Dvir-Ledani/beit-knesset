@@ -223,7 +223,7 @@
       if (key) map[key] = clean(r[1]);
     });
 
-    var name = map["שם בית הכנסת"] || "בית הכנסת";
+    var name = map["שם בית הכנסת"] || "בית כנסת המרכזי עזרת אחים";
     $("shul-name").textContent = name;
     document.title = name;
 
@@ -439,13 +439,18 @@
     return !!cfg.sheetId;
   }
 
+  // כותרת שחייבת להופיע בכל לשונית, כדי לוודא שהגיעה הלשונית הנכונה
+  var EXPECTED_HEADER = { general: "שדה", times: "תפילה", aliyot: "שם", messages: "כותרת" };
+
   function fetchTab(cfg, key) {
     return fetch(tabUrl(cfg, key), { cache: "no-store" }).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.text();
     }).then(function (text) {
       if (/^\s*</.test(text)) throw new Error("not csv");
-      return parseCSV(text);
+      var rows = parseCSV(text);
+      if (table(rows).headers.indexOf(EXPECTED_HEADER[key]) === -1) throw new Error("wrong tab: " + key);
+      return rows;
     });
   }
 
@@ -484,6 +489,7 @@
         var when = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(cached.savedAt));
         setStatus("לא הצלחנו לטעון את המידע העדכני. מוצג המידע מ-" + when + ".");
       } else {
+        render({ general: [], times: [], aliyot: [], messages: [] });
         setStatus("לא ניתן לטעון את המידע כרגע. בדקו את החיבור לאינטרנט ונסו שוב.");
       }
     });
