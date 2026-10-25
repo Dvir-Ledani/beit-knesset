@@ -217,7 +217,9 @@
   ];
 
   function resolveTime(raw) {
-    var s = clean(raw).replace(/^(\d{1,2}:\d{2}):\d{2}$/, "$1"); // 18:10:00 -> 18:10
+    var s = clean(raw)
+      .replace(/^(\d{1,2}:\d{2}):\d{2}$/, "$1")   // 18:10:00 -> 18:10
+      .replace(/^0(\d:\d{2})$/, "$1");            // 07:15 -> 7:15
     var anchor = ANCHORS.filter(function (a) { return a.re.test(s); })[0];
     if (!anchor) return { text: s, auto: false };
     var end = anchor.at();
@@ -464,8 +466,11 @@
       var base = cfg.publishedUrl.split("?")[0].replace(/\/pubhtml$/, "/pub");
       return base + "?output=csv&single=true&gid=" + encodeURIComponent(cfg.gids[key]);
     }
+    // לפי מספר הלשונית (gid) כשהוא ידוע: לא תלוי בשם הלשונית או בעברית בכתובת
+    var gid = cfg.gids && clean(cfg.gids[key]);
     return "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(cfg.sheetId) +
-      "/gviz/tq?tqx=out:csv&headers=1&sheet=" + encodeURIComponent(cfg.tabNames[key]);
+      "/gviz/tq?tqx=out:csv&headers=1&" +
+      (gid ? "gid=" + encodeURIComponent(gid) : "sheet=" + encodeURIComponent(cfg.tabNames[key]));
   }
 
   function isConfigured(cfg) {
