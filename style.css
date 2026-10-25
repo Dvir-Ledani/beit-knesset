@@ -255,6 +255,19 @@ a { color: var(--link); text-underline-offset: 0.15em; }
   text-align: right;
 }
 
+.board-rows li.zman {
+  color: var(--letter-dim);
+  font-weight: 400;
+}
+
+.board-caption {
+  margin: 0.625rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.board-caption:empty { display: none; }
+
 .board-rows li.note {
   justify-content: flex-start;
   color: var(--letter-dim);

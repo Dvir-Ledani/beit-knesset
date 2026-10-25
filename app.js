@@ -16,8 +16,10 @@
     times: [
       ["קבוצה", "תפילה", "שעה", "הערה"],
       ["חול", "שחרית", "5:45", ""],
-      ["חול", "מנחה", "18:10", ""],
-      ["חול", "ערבית", "18:30", ""],
+      ["חול", "הנץ החמה", "הנץ החמה", ""],
+      ["חול", "מנחה", "10 דקות לפני השקיעה", ""],
+      ["חול", "שקיעה", "שקיעה", ""],
+      ["חול", "ערבית", "10 דקות אחרי השקיעה", ""],
       ["שבת", "שחרית", "7:15", ""],
       ["שבת", "מנחה", "שעה לפני צאת שבת", ""],
       ["שבת", "ערבית", "10 דקות לפני צאת שבת", ""]
@@ -147,11 +149,11 @@
   var TZEIT_DEGREES = 8.5;  // יציאת שבת: השמש 8.5 מעלות מתחת לאופק, כמו ברוב הלוחות בארץ
   var SUNSET_ALTITUDE = -0.833;
 
-  // השעה בערב שבה מרכז השמש מגיע לגובה הנתון (במעלות; שלילי = מתחת לאופק). שיטת NOAA.
-  function sunAt(date, altitude, lat, lon) {
+  // השעה שבה מרכז השמש מגיע לגובה הנתון (במעלות; שלילי = מתחת לאופק), בערב או בבוקר. שיטת NOAA.
+  function sunAt(date, altitude, lat, lon, morning) {
     var r = Math.PI / 180;
     var jd0 = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000 + 2440587.5;
-    var t = 15 / 24;
+    var t = morning ? 4 / 24 : 15 / 24;
     // מעבר אחד, בדיוק כמו בגיליון, כדי שהאתר והגיליון יראו תמיד אותה דקה
     for (var i = 0; i < 1; i++) {
       var jc = (jd0 + t - 2451545) / 36525;
@@ -171,7 +173,7 @@
       var cosHa = Math.cos((90 - altitude) * r) / (Math.cos(lat * r) * Math.cos(dec)) - Math.tan(lat * r) * Math.tan(dec);
       if (cosHa < -1 || cosHa > 1) return null;
       var ha = Math.acos(cosHa) / r;
-      t = (720 - 4 * lon - eqTime + 4 * ha) / 1440;
+      t = (720 - 4 * lon - eqTime + (morning ? -4 : 4) * ha) / 1440;
     }
     return new Date((jd0 + t - 2440587.5) * 86400000);
   }
@@ -194,11 +196,31 @@
     }).format(t);
   }
 
-  // "שעה לפני צאת שבת", "10 דקות לפני צאת שבת", "צאת שבת - 10" וכדומה הופכים לשעה מחושבת
+  // זמני היום: הנץ החמה מעוגל למעלה, שקיעה מעוגלת למטה (כמו בגיליון)
+  function todaySunrise() {
+    var t = sunAt(startOfToday(), SUNSET_ALTITUDE, CITY.lat, CITY.lon, true);
+    return t ? new Date(Math.ceil(t.getTime() / 60000) * 60000) : null;
+  }
+
+  function todaySunset() {
+    var t = sunAt(startOfToday(), SUNSET_ALTITUDE, CITY.lat, CITY.lon, false);
+    return t ? new Date(Math.floor(t.getTime() / 60000) * 60000) : null;
+  }
+
+  // זמן שכתוב במילים הופך לשעה מחושבת, למשל:
+  // "שעה לפני צאת שבת", "10 דקות לפני השקיעה", "10 דקות אחרי השקיעה", "הנץ החמה", "צאת שבת - 10"
+  var ANCHORS = [
+    { re: /(?:צאת|יציאת)\s*ה?שבת/, at: shabbatEnd },
+    { re: /(?:כניסת\s*ה?שבת|הדלקת\s*נרות)/, at: shabbatStart },
+    { re: /שקיעה|השקיעה/, at: todaySunset },
+    { re: /הנץ|זריחה|הזריחה/, at: todaySunrise }
+  ];
+
   function resolveTime(raw) {
     var s = clean(raw).replace(/^(\d{1,2}:\d{2}):\d{2}$/, "$1"); // 18:10:00 -> 18:10
-    if (!/צאת\s*ה?שבת/.test(s)) return { text: s, auto: false };
-    var end = shabbatEnd();
+    var anchor = ANCHORS.filter(function (a) { return a.re.test(s); })[0];
+    if (!anchor) return { text: s, auto: false };
+    var end = anchor.at();
     if (!end) return { text: "", auto: true };
     var minutes = 0, m;
     var words = { "חצי שעה": 30, "שעה": 60, "שעתיים": 120 };
@@ -206,7 +228,7 @@
       minutes = +m[1] * (m[2] === "לפני" ? -1 : 1);
     } else if ((m = s.match(/(חצי שעה|שעתיים|שעה)\s*(לפני|אחרי)/))) {
       minutes = words[m[1]] * (m[2] === "לפני" ? -1 : 1);
-    } else if ((m = s.match(/צאת\s*ה?שבת\s*([-+−–])\s*(\d+)/))) {
+    } else if ((m = s.match(/[א-ת]\s*([-+−–])\s*(\d+)\s*$/))) {
       minutes = +m[2] * (m[1] === "+" ? 1 : -1);
     }
     return { text: formatClock(new Date(end.getTime() + minutes * 60000)), auto: true };
@@ -306,6 +328,18 @@
       });
     }
 
+    var caption = $("board-caption");
+    var sel = state.selected || "";
+    if (sel.indexOf("חול") !== -1) {
+      var today = startOfToday();
+      var weekday = new Intl.DateTimeFormat("he-IL", { weekday: "long" }).format(today);
+      caption.textContent = "הזמנים של היום, " + weekday + " " + hebrewDate(today);
+    } else if (sel.indexOf("שבת") !== -1) {
+      caption.textContent = "הזמנים לשבת הקרובה, " + hebrewDate(state.shabbatDate || upcomingShabbat());
+    } else {
+      caption.textContent = "";
+    }
+
     var list = $("board-rows");
     list.textContent = "";
     var items = byGroup[state.selected] || [];
@@ -314,7 +348,8 @@
       return;
     }
     items.forEach(function (it) {
-      var li = el("li");
+      // זמני היום (הנץ, שקיעה וכו') מוצגים בגוון מעט חלש יותר מזמני התפילות
+      var li = el("li", /^(הנץ|זריחה|שקיעה|חצות|צאת|יציאת|כניסת|הדלקת)/.test(it.name) ? "zman" : null);
       li.appendChild(el("span", "name", it.name));
       li.appendChild(el("span", "time", resolveTime(it.time).text));
       list.appendChild(li);
