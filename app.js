@@ -9,7 +9,7 @@
     general: [
       ["שדה", "ערך"],
       ["שם בית הכנסת", "בית כנסת המרכזי עזרת אחים"],
-      ["פרשה", "לך לך"],
+      ["פרשה", "וירא"],
       ["בעל קורא", "רועי אהרוני"],
       ["תאריך", ""]
     ],
@@ -251,9 +251,14 @@
     $("shul-name").textContent = name;
     document.title = name;
 
+    // "וירא" -> "שבת פרשת וירא"; "פרשת וירא" -> "שבת פרשת וירא";
+    // שבת חג כמו "שבת חול המועד סוכות" מוצגת כמו שהיא
     var parasha = map["פרשה"] || map["פרשת השבוע"] || "";
-    if (parasha && parasha.indexOf("פרשת") !== 0) parasha = "פרשת " + parasha;
-    $("shabbat-title").textContent = parasha ? "שבת " + parasha : "";
+    var title = "";
+    if (/^שבת(\s|$)/.test(parasha)) title = parasha;
+    else if (parasha.indexOf("פרשת") === 0) title = "שבת " + parasha;
+    else if (parasha) title = "שבת פרשת " + parasha;
+    $("shabbat-title").textContent = title;
 
     var date = parseDate(map["תאריך"]) || upcomingShabbat();
     state.shabbatDate = date;
